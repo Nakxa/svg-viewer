@@ -454,3 +454,126 @@ class SVGViewer(tk.Tk):
                 else:  # radial gradient
                     gradient = ET.SubElement(defs, 'radialGradient', id=gradient_id)
                     ET.SubElement(gradient, 'stop',
+                                offset='0%',
+                                style=f"stop-color:{self.current_settings['gradient_start']}")
+                    ET.SubElement(gradient, 'stop',
+                                offset='100%',
+                                style=f"stop-color:{self.current_settings['gradient_end']}")
+
+
+            # Apply transformations
+            transform_list = []
+            if self.current_settings['rotation']:
+                transform_list.append(f"rotate({self.current_settings['rotation']})")
+            if self.current_settings['scale_x'] != 1 or self.current_settings['scale_y'] != 1:
+                transform_list.append(f"scale({self.current_settings['scale_x']},{self.current_settings['scale_y']})")
+            if self.current_settings['skew_x'] or self.current_settings['skew_y']:
+                transform_list.append(f"skewX({self.current_settings['skew_x']})")
+                transform_list.append(f"skewY({self.current_settings['skew_y']})")
+           
+            if transform_list:
+                root.set("transform", " ".join(transform_list))
+
+
+            # Apply styles
+            style_list = []
+            if self.current_settings['opacity'] != 1:
+                style_list.append(f"opacity: {self.current_settings['opacity']}")
+            if self.current_settings['stroke_width']:
+                style_list.append(f"stroke: {self.current_settings['stroke_color']}")
+                style_list.append(f"stroke-width: {self.current_settings['stroke_width']}")
+            if self.current_settings['gradient_type'] != 'none':
+                style_list.append(f"fill: url(#svg-gradient)")
+           
+            # Apply filters
+            filter_list = []
+            if any([self.current_settings['blur'],
+                   self.current_settings['brightness'] != 100,
+                   self.current_settings['contrast'] != 100]):
+                filter_list.append("url(#combined-filter)")
+            if self.current_settings['shadow_blur']:
+                filter_list.append("url(#shadow-filter)")
+           
+            if filter_list:
+                style_list.append(f"filter: {' '.join(filter_list)}")
+           
+            if style_list:
+                root.set("style", "; ".join(style_list))
+
+
+            # Add animation if selected
+            if self.current_settings['animation'] != 'none':
+                anim_dur = str(self.current_settings['animation_duration']) + 's'
+               
+                # Set correct SVG namespace
+                root.set('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+               
+                if self.current_settings['animation'] == 'rotate':
+                    anim = ET.SubElement(root, 'animateTransform')
+                    anim.set('attributeName', 'transform')
+                    anim.set('type', 'rotate')
+                    anim.set('from', '0 50 50')
+                    anim.set('to', '360 50 50')
+                    anim.set('dur', anim_dur)
+                    anim.set('repeatCount', 'indefinite')
+                   
+                elif self.current_settings['animation'] == 'pulse':
+                    anim = ET.SubElement(root, 'animate')
+                    anim.set('attributeName', 'opacity')
+                    anim.set('values', '1;0.5;1')
+                    anim.set('dur', anim_dur)
+                    anim.set('repeatCount', 'indefinite')
+                   
+                elif self.current_settings['animation'] == 'bounce':
+                    anim = ET.SubElement(root, 'animateTransform')
+                    anim.set('attributeName', 'transform')
+                    anim.set('type', 'translate')
+                    anim.set('values', '0,0; 0,-20; 0,0')
+                    anim.set('dur', anim_dur)
+                    anim.set('repeatCount', 'indefinite')
+
+
+            # Convert back to string
+            svg_string = ET.tostring(root, encoding="unicode", method="xml")
+
+
+            # Create and display SVG image
+            svg_image = SvgImage(data=svg_string)
+            image_label = tk.Label(self.main_content, image=svg_image, bg="#fff")
+            image_label.image = svg_image
+            image_label.pack(pady=10)
+
+
+            # Add export button
+            export_button = ttk.Button(self.main_content,
+                                     text="Export SVG",
+                                     command=lambda: self.export_svg(svg_string))
+            export_button.pack(pady=10)
+
+
+        except Exception as e:
+            error_label = tk.Label(self.main_content,
+                                 text=f"Error updating SVG: {str(e)}",
+                                 fg="red",
+                                 bg="#fff")
+            error_label.pack(pady=10)
+
+
+    def export_svg(self, svg_string):
+        try:
+            filename = f"icon_{self.current_title.lower().replace(' ', '_')}.svg"
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(svg_string)
+            messagebox.showinfo("Success", f"SVG exported successfully as {filename}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export SVG: {str(e)}")
+
+
+if __name__ == "__main__":
+    app = SVGViewer()
+    app.mainloop()
+
+
+
+
+
